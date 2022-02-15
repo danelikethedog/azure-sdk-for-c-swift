@@ -36,7 +36,7 @@ class DemoClient: MQTTClientDelegate {
         queue
     }
 
-    init(iothub: String, deviceId: String)
+    public init(iothub: String, deviceId: String)
     {
         AzureIoTClientSwift = AzureIoTClient(iothubUrl: iothub, deviceId: deviceId)
 
@@ -70,6 +70,11 @@ class DemoClient: MQTTClientDelegate {
         case let packet as ConnAckPacket:
             print("Connack \(packet)")
             sendTelemetry = true;
+            
+        case let packet as PublishPacket:
+            print("Publish Received: \(packet)");
+            print("Publish Topic: \(packet.topic)");
+            print("Publish Payload \(String(decoding: packet.payload, as: UTF8.self))");
 
         default:
             print(packet)
@@ -87,6 +92,12 @@ class DemoClient: MQTTClientDelegate {
         print("Error: \(error)")
     }
 
+/// ****************** PRIVATE ******************** ///
+
+
+
+/// ****************** PUBLIC ******************** ///
+
 /// Sends a message to the IoT hub
     public func sendMessage() {
         let swiftString = AzureIoTClientSwift.GetTelemetryPublishTopic()
@@ -97,13 +108,33 @@ class DemoClient: MQTTClientDelegate {
         mqttClient.publish(topic: swiftString, retain: false, qos: QOS.0, payload: telem_payload)
     }
 
-    //Connect the device to iothub
-    func connectToIoTHub() {
+    public func connectToIoTHub() {
         mqttClient.connect()
     }
 
-    func disconnectFromIoTHub() {
+    public func disconnectFromIoTHub() {
         mqttClient.disconnect();
+    }
+
+    public func subscribeToAzureIoTHubFeatures() {
+        
+        // Methods
+        let methodsTopic = AzureIoTClientSwift.GetMethodsSubscribeTopic()
+        mqttClient.subscribe(topic: methodsTopic, qos: QOS.0)
+        
+        // Twin Response
+        let twinResponseTopic = AzureIoTClientSwift.GetTwinResponseSubscribeTopic()
+        mqttClient.subscribe(topic: twinResponseTopic, qos: QOS.0)
+
+        // Twin Patch
+        let twinPatchTopic = AzureIoTClientSwift.GetTwinPatchSubscribeTopic()
+        mqttClient.subscribe(topic: twinPatchTopic, qos: QOS.0)
+
+    }
+
+    public func subscribeToAzureDeviceProvisioningFeature() {
+        let deviceProvisioningTopic = AzureIoTClientSwift.GetDeviceProvisioningSubscribeTopic()
+        mqttClient.subscribe(topic: deviceProvisioningTopic, qos: QOS.0)
     }
 }
 
@@ -118,6 +149,8 @@ while(!sendTelemetry)
 {
     //Waiting
 }
+
+hubDemoClient.subscribeToAzureIoTHubFeatures()
 
 for x in 0...5
 {

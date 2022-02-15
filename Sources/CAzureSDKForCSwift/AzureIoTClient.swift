@@ -82,4 +82,34 @@ public class AzureIoTClient {
             return String(cString: topicCharArray)
     }
 
+    public func GetTwinResponseSubscribeTopic() -> String
+    {
+        return AZ_IOT_HUB_CLIENT_TWIN_RESPONSE_SUBSCRIBE_TOPIC
+    }
+
+    public func GetTwinPatchSubscribeTopic() -> String
+    {
+        return AZ_IOT_HUB_CLIENT_TWIN_PATCH_SUBSCRIBE_TOPIC
+    }
+
+    public func GetTwinDocumentPublishTopic(requestID: String) -> String
+    {
+        var topicCharArray = [CChar](repeating: 0, count: 50)
+        var topicLength : Int = 0
+
+        let requestIDString = makeCString(from: requestID)
+        let requestIDSpan: az_span = requestIDString.withMemoryRebound(to: UInt8.self, capacity: requestID.count) { reqIDPtr in
+            return az_span_create(reqIDPtr, Int32(requestID.count))
+        }
+
+        let _ : az_result = az_iot_hub_client_twin_document_get_publish_topic(&self.embeddedClient, requestIDSpan, &topicCharArray, 50, &topicLength )
+
+        return String(cString: topicCharArray)
+    }
+
+    public func GetDeviceProvisioningSubscribeTopic() -> String
+    {
+        return AZ_IOT_PROVISIONING_CLIENT_REGISTER_SUBSCRIBE_TOPIC
+    }
+
 }
