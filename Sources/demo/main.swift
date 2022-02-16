@@ -61,10 +61,10 @@ class DemoProvisioningClient: MQTTClientDelegate {
         mqttClient = MQTTClient(
             host: "global.azure-devices-provisioning.net",
             port: 8883,
-            clientID: "\(AzProvClient.GetDeviceProvisionigClientID())",
+            clientID: AzProvClient.GetDeviceProvisionigClientID(),
             cleanSession: true,
             keepAlive: 30,
-            username: "\(AzProvClient.GetDeviceProvisioningUsername())",
+            username: AzProvClient.GetDeviceProvisioningUsername(),
             password: "",
             tlsConfiguration: tlsConfiguration
         )
@@ -76,11 +76,11 @@ class DemoProvisioningClient: MQTTClientDelegate {
     func mqttClient(_ client: MQTTClient, didReceive packet: MQTTPacket) {
         switch packet {
         case let packet as ConnAckPacket:
-            print("[Provisioning] Connack \(packet)")
+            print("[Provisioning] Connack Received")
             isProvisioningConnected = true;
             
         case let packet as PublishPacket:
-            print("[Provisioning] Publish Received: \(packet)");
+            print("[Provisioning] Publish Received");
             print("[Provisioning] Publish Topic: \(packet.topic)");
             print("[Provisioning] Publish Payload \(String(decoding: packet.payload, as: UTF8.self))");
 
@@ -97,16 +97,16 @@ class DemoProvisioningClient: MQTTClientDelegate {
             }
             
         case let packet as SubAckPacket:
-            print("[Provisioning] Suback Received: \(packet)");
+            print("[Provisioning] Suback Received");
 
         default:
-            print(packet)
+            print("[Provisioning] Packet Received: \(packet)")
         }
     }
 
     func mqttClient(_: MQTTClient, didChange state: ConnectionState) {
         if state == .disconnected {
-            print("[Provisioning] \(state)")
+            print("[Provisioning] MQTT state:\(state)")
         }
     }
 
@@ -163,6 +163,7 @@ class DemoHubClient: MQTTClientDelegate {
         let caCert = "\(base)/certs/baltimore.pem"
         let clientCert = "\(base)/certs/client.pem"
         let keyCert = "\(base)/certs/client-key.pem"
+
         let tlsConfiguration = try! TLSConfiguration.forClient(minimumTLSVersion: .tlsv11,
                                                                maximumTLSVersion: .tlsv12,
                                                                certificateVerification: .noHostnameVerification,
@@ -170,12 +171,12 @@ class DemoHubClient: MQTTClientDelegate {
                                                                certificateChain: NIOSSLCertificate.fromPEMFile(clientCert).map { .certificate($0) },
                                                                privateKey: .privateKey(.init(file: keyCert, format: .pem)))
         mqttClient = MQTTClient(
-            host: "\(iothub)",
+            host: iothub,
             port: 8883,
-            clientID: "\(deviceId)",
+            clientID: AzHubClient.GetClientID(),
             cleanSession: true,
             keepAlive: 30,
-            username: "\(iothub)/\(deviceId)/?api-version=2018-06-30",
+            username: AzHubClient.GetUserName(),
             password: "",
             tlsConfiguration: tlsConfiguration
         )
@@ -188,16 +189,16 @@ class DemoHubClient: MQTTClientDelegate {
     func mqttClient(_ client: MQTTClient, didReceive packet: MQTTPacket) {
         switch packet {
         case let packet as ConnAckPacket:
-            print("[IoT Hub] Connack \(packet)")
+            print("[IoT Hub] Connack Received")
             sendTelemetry = true;
             
         case let packet as PublishPacket:
-            print("[IoT Hub] Publish Received: \(packet)");
+            print("[IoT Hub] Publish Received");
             print("[IoT Hub] Publish Topic: \(packet.topic)");
             print("[IoT Hub] Publish Payload \(String(decoding: packet.payload, as: UTF8.self))");
 
         default:
-            print(packet)
+            print("[IoT Hub] Packet Received: \(packet)")
         }
     }
 
@@ -205,7 +206,7 @@ class DemoHubClient: MQTTClientDelegate {
         if state == .disconnected {
             sem.signal()
         }
-        print(state)
+        print("[IoT Hub] MQTT state: \(state)")
     }
 
     func mqttClient(_: MQTTClient, didCatchError error: Error) {
@@ -257,9 +258,6 @@ class DemoHubClient: MQTTClientDelegate {
 
 ///********** Provisioning Flow **********///
 
-private var myScopeID: String = "0ne00180E4D"
-private var myRegistrationID: String = "ios"
-
 var provisioningDemoClient = DemoProvisioningClient(idScope: myScopeID, registrationID: myRegistrationID)
 
 provisioningDemoClient.connectToProvisioning()
@@ -281,9 +279,6 @@ provisioningDemoClient.disconnectFromProvisioning()
 
 ///********** Hub Flow **********///
 
-//private var myDeviceId: String = "ios"
-//private var myHubURL: String = "dawalton-hub.azure-devices.net"
-//
 var hubDemoHubClient = DemoHubClient(iothub: provisioningDemoClient.assignedHub, deviceId: provisioningDemoClient.assignedDeviceID)
 
 hubDemoHubClient.connectToIoTHub()

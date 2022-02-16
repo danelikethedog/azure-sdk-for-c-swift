@@ -41,7 +41,7 @@ public struct AzureIoTProvisioningRegistrationState
             }
             ErrorMessageString = String(cString: ErrorMessageArray)
         }
-        
+
         var ErrorTrackingIDString = ""
         if az_span_size(embeddedRegistrationState.error_tracking_id) > 0
         {
@@ -175,7 +175,7 @@ public class AzureIoTDeviceProvisioningClient {
             return az_span_create(operationIDPtr, Int32(operationID.count))
         }
 
-        let azRes : az_result = az_iot_provisioning_client_query_status_get_publish_topic(&self.embeddedProvClient, operationIDSpan, &TopicArray, 150, &TopicLength )
+        let _ : az_result = az_iot_provisioning_client_query_status_get_publish_topic(&self.embeddedProvClient, operationIDSpan, &TopicArray, 150, &TopicLength )
 
         return String(cString: TopicArray)
     }
