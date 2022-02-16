@@ -22,30 +22,45 @@ public struct AzureIoTProvisioningRegistrationState
             AssignedHubString = String(cString: AssignedHubArray)
         }
 
+        var DeviceIDString = ""
+        if az_span_size(embeddedRegistrationState.device_id) > 0
+        {
+            var DeviceIDArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.device_id) + 1))
+            _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.device_id)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.device_id))) { charPtr in
+                return strncpy(&DeviceIDArray, charPtr, Int(az_span_size(embeddedRegistrationState.device_id)))
+            }
+            DeviceIDString = String(cString: DeviceIDArray)
+        }
 
-        var DeviceIDArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.device_id) + 1))
-        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.device_id)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.device_id))) { charPtr in
-            return strncpy(&DeviceIDArray, charPtr, Int(az_span_size(embeddedRegistrationState.device_id)))
+        var ErrorMessageString = ""
+        if az_span_size(embeddedRegistrationState.error_message) > 0
+        {
+            var ErrorMessageArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.error_message) + 1))
+            _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.error_message)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.error_message))) { charPtr in
+                return strncpy(&ErrorMessageArray, charPtr, Int(az_span_size(embeddedRegistrationState.error_message)))
+            }
+            ErrorMessageString = String(cString: ErrorMessageArray)
         }
-        let DeviceIDString = String(cString: DeviceIDArray)
-
-        var ErrorMessageArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.error_message) + 1))
-        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.error_message)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.error_message))) { charPtr in
-            return strncpy(&ErrorMessageArray, charPtr, Int(az_span_size(embeddedRegistrationState.error_message)))
-        }
-        let ErrorMessageString = String(cString: ErrorMessageArray)
         
-        var ErrorTrackingIDArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.error_tracking_id) + 1))
-        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.error_tracking_id)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.error_tracking_id))) { charPtr in
-            return strncpy(&ErrorTrackingIDArray, charPtr, Int(az_span_size(embeddedRegistrationState.error_tracking_id)))
+        var ErrorTrackingIDString = ""
+        if az_span_size(embeddedRegistrationState.error_tracking_id) > 0
+        {
+            var ErrorTrackingIDArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.error_tracking_id) + 1))
+            _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.error_tracking_id)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.error_tracking_id))) { charPtr in
+                return strncpy(&ErrorTrackingIDArray, charPtr, Int(az_span_size(embeddedRegistrationState.error_tracking_id)))
+            }
+            ErrorTrackingIDString = String(cString: ErrorTrackingIDArray)
         }
-        let ErrorTrackingIDString = String(cString: ErrorTrackingIDArray)
         
-        var ErrorTimestampArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.error_timestamp) + 1))
-        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.error_timestamp)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.error_timestamp))) { charPtr in
-            return strncpy(&ErrorTimestampArray, charPtr, Int(az_span_size(embeddedRegistrationState.error_timestamp)))
+        var ErrorTimestampString = ""
+        if az_span_size(embeddedRegistrationState.error_timestamp) > 0
+        {
+            var ErrorTimestampArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedRegistrationState.error_timestamp) + 1))
+            _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedRegistrationState.error_timestamp)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedRegistrationState.error_timestamp))) { charPtr in
+                return strncpy(&ErrorTimestampArray, charPtr, Int(az_span_size(embeddedRegistrationState.error_timestamp)))
+            }
+            ErrorTimestampString = String(cString: ErrorTimestampArray)
         }
-        let ErrorTimestampString = String(cString: ErrorTimestampArray)
         
         self.AssignedHubHostname = AssignedHubString
         self.DeviceID = DeviceIDString
@@ -152,7 +167,7 @@ public class AzureIoTDeviceProvisioningClient {
 
     public func GetDeviceProvisioningQueryTopic(operationID: String) -> String
     {
-        var TopicArray = [CChar](repeating: 0, count: 100)
+        var TopicArray = [CChar](repeating: 0, count: 150)
         var TopicLength : Int = 0
 
         let operationIDString = makeCString(from: operationID)
@@ -160,10 +175,8 @@ public class AzureIoTDeviceProvisioningClient {
             return az_span_create(operationIDPtr, Int32(operationID.count))
         }
 
-        print("Operation ID: \(operationID)")
-        
-        let _ : az_result = az_iot_provisioning_client_query_status_get_publish_topic(&self.embeddedProvClient, operationIDSpan, &TopicArray, 100, &TopicLength )
-        
+        let azRes : az_result = az_iot_provisioning_client_query_status_get_publish_topic(&self.embeddedProvClient, operationIDSpan, &TopicArray, 150, &TopicLength )
+
         return String(cString: TopicArray)
     }
 
@@ -183,8 +196,6 @@ public class AzureIoTDeviceProvisioningClient {
         _ = az_iot_provisioning_client_parse_received_topic_and_payload(&self.embeddedProvClient, topicSpan, payloadSpan, &embeddedRequestResponse)
 
         let responseStruct: AzureIoTProvisioningRegisterResponse = AzureIoTProvisioningRegisterResponse(embeddedResponse: embeddedRequestResponse)
-
-        print("[ParseRegistrationTopicAndPayload] Operation ID: \(responseStruct.OperationID)")
 
         return responseStruct
     }
