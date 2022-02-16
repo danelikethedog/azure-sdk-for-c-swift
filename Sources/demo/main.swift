@@ -14,6 +14,7 @@ import CAzureSDKForCSwift
 var isProvisioningConnected: Bool = false;
 var isDeviceProvisioned: Bool = false;
 var sendTelemetry: Bool = false;
+var gOperationID: String = ""
 
 let base: String
 if CommandLine.arguments.count > 1 {
@@ -29,7 +30,7 @@ let queue = DispatchQueue(label: "a", qos: .background)
 class DemoProvisioningClient: MQTTClientDelegate {
     
     /// Azure IoT Client
-    private var AzureIoTClientSwift : AzureIoTClient! = nil
+    private var AzProvClient : AzureIoTDeviceProvisioningClient! = nil
     
     /// MQTT Client
     private var mqttClient: MQTTClient! = nil
@@ -40,7 +41,7 @@ class DemoProvisioningClient: MQTTClientDelegate {
 
     public init(idScope: String, registrationID: String)
     {
-        AzureIoTClientSwift = AzureIoTClient(idScope: idScope, registrationID: registrationID)
+        AzProvClient = AzureIoTDeviceProvisioningClient(idScope: idScope, registrationID: registrationID)
 
         let caCert = "\(base)/certs/baltimore.pem"
         let clientCert = "\(base)/certs/client.pem"
@@ -51,13 +52,16 @@ class DemoProvisioningClient: MQTTClientDelegate {
                                                                trustRoots: NIOSSLTrustRoots.certificates(NIOSSLCertificate.fromPEMFile(caCert)),
                                                                certificateChain: NIOSSLCertificate.fromPEMFile(clientCert).map { .certificate($0) },
                                                                privateKey: .privateKey(.init(file: keyCert, format: .pem)))
+        print("Client ID: \(AzProvClient.GetDeviceProvisionigClientID())")
+        print("Username: \(AzProvClient.GetDeviceProvisioningUsername())")
+
         mqttClient = MQTTClient(
             host: "global.azure-devices-provisioning.net",
             port: 8883,
-            clientID: "\(AzureIoTClientSwift.GetDeviceProvisionigClientID())",
+            clientID: "\(AzProvClient.GetDeviceProvisionigClientID())",
             cleanSession: true,
             keepAlive: 30,
-            username: "\(AzureIoTClientSwift.GetDeviceProvisioningUsername())",
+            username: "\(AzProvClient.GetDeviceProvisioningUsername())",
             password: "",
             tlsConfiguration: tlsConfiguration
         )
@@ -77,7 +81,15 @@ class DemoProvisioningClient: MQTTClientDelegate {
             print("[Provisioning] Publish Topic: \(packet.topic)");
             print("[Provisioning] Publish Payload \(String(decoding: packet.payload, as: UTF8.self))");
 
+            let provResponse: AzureIoTProvisioningRegisterResponse = AzProvClient.ParseRegistrationTopicAndPayload(topic: packet.topic, payload: String(decoding: packet.payload, as: UTF8.self))
+            gOperationID = provResponse.OperationID
+            print("Global Operation ID: \(gOperationID)")
+
+
+            print("\(provResponse.RegistrationState.AssignedHubHostname)")
             
+        case let packet as SubAckPacket:
+            print("[Provisioning] Suback Received: \(packet)");
 
         default:
             print(packet)
@@ -86,9 +98,9 @@ class DemoProvisioningClient: MQTTClientDelegate {
 
     func mqttClient(_: MQTTClient, didChange state: ConnectionState) {
         if state == .disconnected {
+            print("[Provisioning] \(state)")
             sem.signal()
         }
-        print("[Provisioning] \(state)")
     }
 
     func mqttClient(_: MQTTClient, didCatchError error: Error) {
@@ -98,26 +110,35 @@ class DemoProvisioningClient: MQTTClientDelegate {
     public func connectToProvisioning() {
         mqttClient.connect()
     }
+    
+    public func disconnectFromProvisioning() {
+        mqttClient.disconnect()
+    }
 
     public func subscribeToAzureDeviceProvisioningFeature() {
-        let deviceProvisioningTopic = AzureIoTClientSwift.GetDeviceProvisioningSubscribeTopic()
-        mqttClient.subscribe(topic: deviceProvisioningTopic, qos: QOS.0)
+        print("[Provisioning] Subscribing to Provisioning")
+        let deviceProvisioningTopic = AzProvClient.GetDeviceProvisioningSubscribeTopic()
+        print("[Provisioning] Subscribing to topic: \(deviceProvisioningTopic)")
+        mqttClient.subscribe(topic: deviceProvisioningTopic, qos: QOS.1)
     }
 
     public func sendDeviceProvisioningRequest() {
-        let deviceProvisioningRequestTopic = AzureIoTClientSwift.GetDeviceProvisioningRegistrationPublishTopic()
-        mqttClient.publish(topic: deviceProvisioningRequestTopic, retain: false, qos: QOS.1,  payload: "")
+        print("[Provisioning] Requesting to be Provisioned")
+        let deviceProvisioningRequestTopic = AzProvClient.GetDeviceProvisioningRegistrationPublishTopic()
+        mqttClient.publish(topic: deviceProvisioningRequestTopic, retain: false, qos: QOS.1, payload: "")
     }
 
-    public func sendDeviceProvisioningPollingRequest() {
-
+    public func sendDeviceProvisioningPollingRequest(operationID: String) {
+        print("[Provisioning] Quering Provisioning")
+        let deviceProvisioningQueryTopic = AzProvClient.GetDeviceProvisioningQueryTopic(operationID: operationID)
+        mqttClient.publish(topic: deviceProvisioningQueryTopic, retain: false, qos: QOS.1, payload: "")
     }
 }
 
 class DemoHubClient: MQTTClientDelegate {
 
     /// Azure IoT Client
-    private var AzureIoTClientSwift : AzureIoTClient! = nil
+    private var AzHubClient : AzureIoTHubClient! = nil
 
     /// MQTT Client
     private var mqttClient: MQTTClient! = nil
@@ -126,10 +147,9 @@ class DemoHubClient: MQTTClientDelegate {
         queue
     }
 
-
     public init(iothub: String, deviceId: String)
     {
-        AzureIoTClientSwift = AzureIoTClient(iothubUrl: iothub, deviceId: deviceId)
+        AzHubClient = AzureIoTHubClient(iothubUrl: iothub, deviceId: deviceId)
 
         let caCert = "\(base)/certs/baltimore.pem"
         let clientCert = "\(base)/certs/client.pem"
@@ -191,7 +211,7 @@ class DemoHubClient: MQTTClientDelegate {
 
 /// Sends a message to the IoT hub
     public func sendMessage() {
-        let swiftString = AzureIoTClientSwift.GetTelemetryPublishTopic()
+        let swiftString = AzHubClient.GetTelemetryPublishTopic()
 
         let telem_payload = "Hello iOS"
         print("[IoT Hub] Sending a message: \(telem_payload)")
@@ -210,15 +230,15 @@ class DemoHubClient: MQTTClientDelegate {
     public func subscribeToAzureIoTHubFeatures() {
         
         // Methods
-        let methodsTopic = AzureIoTClientSwift.GetMethodsSubscribeTopic()
+        let methodsTopic = AzHubClient.GetMethodsSubscribeTopic()
         mqttClient.subscribe(topic: methodsTopic, qos: QOS.0)
         
         // Twin Response
-        let twinResponseTopic = AzureIoTClientSwift.GetTwinResponseSubscribeTopic()
+        let twinResponseTopic = AzHubClient.GetTwinResponseSubscribeTopic()
         mqttClient.subscribe(topic: twinResponseTopic, qos: QOS.0)
 
         // Twin Patch
-        let twinPatchTopic = AzureIoTClientSwift.GetTwinPatchSubscribeTopic()
+        let twinPatchTopic = AzHubClient.GetTwinPatchSubscribeTopic()
         mqttClient.subscribe(topic: twinPatchTopic, qos: QOS.0)
 
     }
@@ -226,8 +246,8 @@ class DemoHubClient: MQTTClientDelegate {
 
 ///********** Provisioning Flow **********///
 
-private var myScopeID: String = ""
-private var myRegistrationID: String = ""
+private var myScopeID: String = "0ne00180E4D"
+private var myRegistrationID: String = "ios"
 
 var provisioningDemoClient = DemoProvisioningClient(idScope: myScopeID, registrationID: myRegistrationID)
 
@@ -239,35 +259,41 @@ provisioningDemoClient.subscribeToAzureDeviceProvisioningFeature()
 
 provisioningDemoClient.sendDeviceProvisioningRequest()
 
+queue.asyncAfter(deadline: .now() + 4)
+{
+    provisioningDemoClient.sendDeviceProvisioningPollingRequest(operationID: gOperationID)
+}
+
 while(!isDeviceProvisioned) {}
 
+print("PROVISIONED")
 
-
+provisioningDemoClient.disconnectFromProvisioning()
 
 ///********** Hub Flow **********///
 
-private var myDeviceId: String = "ios"
-private var myHubURL: String = "dawalton-hub.azure-devices.net"
-
-var hubDemoHubClient = DemoHubClient(iothub: myHubURL, deviceId: myDeviceId)
-
-hubDemoHubClient.connectToIoTHub()
-
-while(!sendTelemetry) {}
-
-hubDemoHubClient.subscribeToAzureIoTHubFeatures()
-
-for x in 0...5
-{
-    queue.asyncAfter(deadline: .now() + DispatchTimeInterval.seconds(x))
-    {
-        hubDemoHubClient.sendMessage()
-    }
-}
-
-queue.asyncAfter(deadline: .now() + 20) {
-    print("Ending")
-    hubDemoHubClient.disconnectFromIoTHub()
-}
-
-sem.wait()
+//private var myDeviceId: String = "ios"
+//private var myHubURL: String = "dawalton-hub.azure-devices.net"
+//
+//var hubDemoHubClient = DemoHubClient(iothub: myHubURL, deviceId: myDeviceId)
+//
+//hubDemoHubClient.connectToIoTHub()
+//
+//while(!sendTelemetry) {}
+//
+//hubDemoHubClient.subscribeToAzureIoTHubFeatures()
+//
+//for x in 0...5
+//{
+//    queue.asyncAfter(deadline: .now() + DispatchTimeInterval.seconds(x))
+//    {
+//        hubDemoHubClient.sendMessage()
+//    }
+//}
+//
+//queue.asyncAfter(deadline: .now() + 20) {
+//    print("Ending")
+//    hubDemoHubClient.disconnectFromIoTHub()
+//}
+//
+//sem.wait()
