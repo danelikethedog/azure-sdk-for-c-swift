@@ -76,7 +76,7 @@ class DemoProvisioningClient: MQTTClientDelegate {
     func mqttClient(_ client: MQTTClient, didReceive packet: MQTTPacket) {
         switch packet {
         case let packet as ConnAckPacket:
-            print("[Provisioning] Connack Received")
+            print("[Provisioning] Connack Received: \(packet)")
             isProvisioningConnected = true;
             
         case let packet as PublishPacket:
@@ -97,7 +97,7 @@ class DemoProvisioningClient: MQTTClientDelegate {
             }
             
         case let packet as SubAckPacket:
-            print("[Provisioning] Suback Received");
+            print("[Provisioning] Suback Received: \(packet)");
 
         default:
             print("[Provisioning] Packet Received: \(packet)")
@@ -189,11 +189,11 @@ class DemoHubClient: MQTTClientDelegate {
     func mqttClient(_ client: MQTTClient, didReceive packet: MQTTPacket) {
         switch packet {
         case let packet as ConnAckPacket:
-            print("[IoT Hub] Connack Received")
+            print("[IoT Hub] Connack Received: \(packet)")
             sendTelemetry = true;
             
         case let packet as PublishPacket:
-            print("[IoT Hub] Publish Received");
+            print("[IoT Hub] Publish Received: \(packet)");
             print("[IoT Hub] Publish Topic: \(packet.topic)");
             print("[IoT Hub] Publish Payload \(String(decoding: packet.payload, as: UTF8.self))");
 
@@ -242,16 +242,16 @@ class DemoHubClient: MQTTClientDelegate {
     public func subscribeToAzureIoTHubFeatures() {
         print("[IoT Hub] Subscribing to IoT Hub Features")
         // Methods
-        // let methodsTopic = AzHubClient.GetMethodsSubscribeTopic()
-        // mqttClient.subscribe(topic: methodsTopic, qos: QOS.1)
+        let methodsTopic = AzHubClient.GetMethodsSubscribeTopic()
+        mqttClient.subscribe(topic: methodsTopic, qos: QOS.1)
         
-        // // Twin Response
-        // let twinResponseTopic = AzHubClient.GetTwinResponseSubscribeTopic()
-        // mqttClient.subscribe(topic: twinResponseTopic, qos: QOS.1)
+        // Twin Response
+        let twinResponseTopic = AzHubClient.GetTwinResponseSubscribeTopic()
+        mqttClient.subscribe(topic: twinResponseTopic, qos: QOS.1)
 
-        // // Twin Patch
-        // let twinPatchTopic = AzHubClient.GetTwinPatchSubscribeTopic()
-        // mqttClient.subscribe(topic: twinPatchTopic, qos: QOS.1)
+        // Twin Patch
+        let twinPatchTopic = AzHubClient.GetTwinPatchSubscribeTopic()
+        mqttClient.subscribe(topic: twinPatchTopic, qos: QOS.1)
 
     }
 }
