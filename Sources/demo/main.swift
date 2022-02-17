@@ -227,7 +227,7 @@ class DemoHubClient: MQTTClientDelegate {
         print("[IoT Hub] Sending a message to topic: \(swiftString)")
         print("[IoT Hub] Sending a message: \(telem_payload)")
 
-        mqttClient.publish(topic: swiftString, retain: false, qos: QOS.0, payload: telem_payload)
+        mqttClient.publish(topic: swiftString, retain: false, qos: QOS.1, payload: telem_payload)
     }
 
     public func connectToIoTHub() {
