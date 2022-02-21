@@ -1,12 +1,12 @@
 # How to use Azure SDK for C through Swift
 
-This is a sample implementation of the [Embedded C SDK](https://aka.ms/embeddedcsdk) wich simplify the creation of connecting Swift devices to Azure IoT services like Azure Iot Hub and DPS (Device Provisioning Service). 
+This is a sample implementation of the [Embedded C SDK](https://aka.ms/embeddedcsdk) which simplifies the creation of connecting Swift devices to Azure IoT services like Azure Iot Hub and DPS (Device Provisioning Service). 
 
 ## Architecture view
 
-The illustration below shows the Swift sample taking a dependence on the Embedded C SDK which provides libraries for access to all Azure IoT funcionalities. 
+The illustration below shows the Swift sample taking a dependence on the Embedded C SDK which provides libraries used to access all Azure IoT functionalities. 
 
-This SDK also implements the BYO (bring your own) network stack, which means device builders can choose whichever MQTT client, TLS and TCP stack that works better for their target platform. 
+This SDK also implements the BYO (bring your own) network stack approach, which means device builders can choose whichever MQTT client, TLS and TCP stack that works better for their target platform. 
 
 In this case, this sample leverages [Swift MQTT](https://github.com/matsune/swift-mqtt), [Swift NIO-SSL](https://github.com/apple/swift-nio-ssl) and [Swift NIO](https://github.com/apple/swift-nio).
 
@@ -23,7 +23,7 @@ In this case, this sample leverages [Swift MQTT](https://github.com/matsune/swif
 
 ## Prerequisites
 
-The following should be completed before getting the smaple running.
+The following should be completed before getting the sample running.
 
 - Swift development installed (see below)
 - Azure Account
@@ -52,8 +52,8 @@ export PATH="~/swift/swift-DEVELOPMENT-SNAPSHOT-2022-02-03-a-ubuntu20.04/usr/bi
 Once you have the prerequisites completed:
 
 - Clone the sample repo
-- Configure the `Sources/demo/config.swift`   file with your dredentials 
-- Add your certificates to the `certs` folder
+- Configure the `Sources/demo/config.swift` file with your credentials
+- Add your certificates to the `certs` folder (`client.pem` and `client-key.pem`)
 - Build and run the demo:
 
 ```swift
@@ -64,16 +64,14 @@ swift run demo
 
 ## Known Issues and Limitations
 
-- Support for MQTT over WebSockets: Swift MQTT (used in this sample) does not support Web Socjets. [CocoaMQTT](https://github.com/emqx/CocoaMQTT) could be an alternative, since it leverages [StarScream](https://github.com/daltoniam/Starscream). [MQTT-nio](https://github.com/adam-fowler/mqtt-nio) might be an alternative as well. 
-- This sample leverages Swift NIO (for network) and Swift NIO-SSL (for TLS) are supported by Apple.  Swift MQTT client is a 3rd party library, not created nor supported by Apple.
+- Support for MQTT over WebSockets: Swift MQTT (used in this sample) does not support Web Sockets. [CocoaMQTT](https://github.com/emqx/CocoaMQTT) could be an alternative, since it leverages [StarScream](https://github.com/daltoniam/Starscream). [MQTT-nio](https://github.com/adam-fowler/mqtt-nio) might be an alternative as well. 
+- This sample leverages Swift NIO (for network) and Swift NIO-SSL (for TLS) are supported by Apple. Swift MQTT client is a 3rd party library, not created nor supported by Apple.
 - No SAS Token utilization is implemented on this sample.
 - No reconnection and no retries have been implemented. They need to be implemented by the client application.
 
-
 ## Support
 
-The Swift sample is an open source solution, it is **NOT** a Microsoft supported solution or product. For bugs and issues with the codebase please log
-an issue in this repo.
+The Swift sample is an open source solution, it is **NOT** a Microsoft supported solution or product. For bugs and issues with the codebase please log an issue in this repo.
 
 ## Contributing
 
