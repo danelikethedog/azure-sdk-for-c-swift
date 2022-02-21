@@ -203,6 +203,58 @@ public class AzureIoTDeviceProvisioningClient {
 
 /// IOT HUB FEATURES
 
+public struct AzureIoTHubCommandRequest
+{
+    public var requestID: String
+    public var componentName: String
+    public var commandName: String
+
+    init(embeddedCommandRequest: az_iot_hub_client_command_request)
+    {
+        var requestIDArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedCommandRequest.request_id) + 1))
+        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedCommandRequest.request_id)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedCommandRequest.request_id))) { charPtr in
+            return strncpy(&requestIDArray, charPtr, Int(az_span_size(embeddedCommandRequest.request_id)))
+        }
+        let requestIDString = String(cString: requestIDArray)
+
+        var componentNameArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedCommandRequest.component_name) + 1))
+        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedCommandRequest.component_name)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedCommandRequest.component_name))) { charPtr in
+            return strncpy(&componentNameArray, charPtr, Int(az_span_size(embeddedCommandRequest.component_name)))
+        }
+        let componentNameString = String(cString: componentNameArray)
+
+        var commandNameArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedCommandRequest.command_name) + 1))
+        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedCommandRequest.command_name)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedCommandRequest.command_name))) { charPtr in
+            return strncpy(&commandNameArray, charPtr, Int(az_span_size(embeddedCommandRequest.command_name)))
+        }
+        let commandNameString = String(cString: commandNameArray)
+        
+        self.requestID = requestIDString
+        self.componentName = componentNameString
+        self.commandName = commandNameString
+    }
+}
+
+public struct AzureIoTHubPropertiesMessage
+{
+    public var requestID: String
+    public var responseType: az_iot_hub_client_properties_message_type
+    public var status: az_iot_status
+
+    init(embeddedPropertiesMessage: az_iot_hub_client_properties_message)
+    {
+        var requestIDArray = [CChar](repeating: 0, count: Int(az_span_size(embeddedPropertiesMessage.request_id) + 1))
+        _ = UnsafeMutablePointer<UInt8>(az_span_ptr(embeddedPropertiesMessage.request_id)).withMemoryRebound(to: Int8.self, capacity: Int(az_span_size(embeddedPropertiesMessage.request_id))) { charPtr in
+            return strncpy(&requestIDArray, charPtr, Int(az_span_size(embeddedPropertiesMessage.request_id)))
+        }
+        let requestIDString = String(cString: requestIDArray)
+
+        self.requestID = requestIDString
+        self.responseType = embeddedPropertiesMessage.message_type
+        self.status = embeddedPropertiesMessage.status
+    }
+}
+
 public class AzureIoTHubClient {
     private(set) var embeddedHubClient: az_iot_hub_client! = nil
 
@@ -268,11 +320,6 @@ public class AzureIoTHubClient {
         
         return String(cString: topicCharArray)
     }
-
-    public func GetC2DSubscribeTopic() -> String
-    {
-        return AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC
-    }
     
     public func GetCommandsSubscribeTopic() -> String
     {
@@ -304,7 +351,7 @@ public class AzureIoTHubClient {
         return AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC
     }
 
-    public func GetTwinDocumentPublishTopic(requestID: String) -> String
+    public func GetPropertiesDocumentPublishTopic(requestID: String) -> String
     {
         var topicCharArray = [CChar](repeating: 0, count: 100)
         var topicLength : Int = 0
@@ -314,8 +361,22 @@ public class AzureIoTHubClient {
             return az_span_create(reqIDPtr, Int32(requestID.count))
         }
 
-        let _ : az_result = az_iot_hub_client_twin_document_get_publish_topic(&self.embeddedHubClient, requestIDSpan, &topicCharArray, 100, &topicLength )
+        let _ : az_result = az_iot_hub_client_properties_document_get_publish_topic(&self.embeddedHubClient, requestIDSpan, &topicCharArray, 100, &topicLength )
 
+        return String(cString: topicCharArray)
+    }
+
+    public func GetPropertiesReportedPublishTopic(requestID: String) -> String
+    {
+        var topicCharArray = [CChar](repeating: 0, count: 100)
+        var topicLength : Int = 0
+
+        let requestIDString = makeCString(from: requestID)
+        let requestIDSpan: az_span = requestIDString.withMemoryRebound(to: UInt8.self, capacity: requestID.count) { reqIDPtr in
+            return az_span_create(reqIDPtr, Int32(requestID.count))
+        }
+        let _ : az_result = az_iot_hub_client_properties_get_reported_publish_topic(&self.embeddedHubClient, requestIDSpan, &topicCharArray, 100, &topicLength)
+    
         return String(cString: topicCharArray)
     }
 }
