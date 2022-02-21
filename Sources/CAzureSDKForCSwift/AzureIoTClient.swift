@@ -201,13 +201,24 @@ public class AzureIoTDeviceProvisioningClient {
     }
 }
 
+/// IOT HUB FEATURES
+
 public class AzureIoTHubClient {
     private(set) var embeddedHubClient: az_iot_hub_client! = nil
 
     public init(iothubUrl: String, deviceId: String)
     {
-        embeddedHubClient = az_iot_hub_client();
+        embeddedHubClient = az_iot_hub_client()
+        var embeddedHubClientOptions = az_iot_hub_client_options()
         
+        let userAgentString = "azsdk-c%2Fswift%2F\(AZ_SDK_VERSION_STRING)"
+        let userAgentCString = makeCString(from: userAgentString)
+        let userAgentSpan: az_span = userAgentCString.withMemoryRebound(to: UInt8.self, capacity: userAgentString.count) { userAgentPtr in
+            return az_span_create(userAgentPtr, Int32(userAgentString.count))
+        }
+
+        embeddedHubClientOptions.user_agent = userAgentSpan
+
         let iothubPointerString = makeCString(from: iothubUrl)
         let deviceIdString = makeCString(from: deviceId)
 
@@ -263,12 +274,12 @@ public class AzureIoTHubClient {
         return AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC
     }
     
-    public func GetMethodsSubscribeTopic() -> String
+    public func GetCommandsSubscribeTopic() -> String
     {
-        return AZ_IOT_HUB_CLIENT_METHODS_SUBSCRIBE_TOPIC
+        return AZ_IOT_HUB_CLIENT_COMMANDS_SUBSCRIBE_TOPIC
     }
-    
-    public func GetMethodsResponseTopic(requestID: String, status: Int16) -> String
+
+    public func GetCommandsResponseTopic(requestID: String, status: Int16) -> String
     {
             var topicCharArray = [CChar](repeating: 0, count: 100)
             var topicLength : Int = 0
@@ -278,19 +289,19 @@ public class AzureIoTHubClient {
                 return az_span_create(reqIDPtr, Int32(requestID.count))
             }
 
-            let _ : az_result = az_iot_hub_client_methods_response_get_publish_topic(&self.embeddedHubClient, requestIDSpan, UInt16(status), &topicCharArray, 100, &topicLength )
+            let _ : az_result = az_iot_hub_client_commands_response_get_publish_topic(&self.embeddedHubClient, requestIDSpan, UInt16(status), &topicCharArray, 100, &topicLength )
 
             return String(cString: topicCharArray)
     }
 
-    public func GetTwinResponseSubscribeTopic() -> String
+    public func GetPropertiesResponseSubscribeTopic() -> String
     {
-        return AZ_IOT_HUB_CLIENT_TWIN_RESPONSE_SUBSCRIBE_TOPIC
+        return AZ_IOT_HUB_CLIENT_PROPERTIES_MESSAGE_SUBSCRIBE_TOPIC
     }
 
-    public func GetTwinPatchSubscribeTopic() -> String
+    public func GetPropertiesWritablePatchSubscribeTopic() -> String
     {
-        return AZ_IOT_HUB_CLIENT_TWIN_PATCH_SUBSCRIBE_TOPIC
+        return AZ_IOT_HUB_CLIENT_PROPERTIES_WRITABLE_UPDATES_SUBSCRIBE_TOPIC
     }
 
     public func GetTwinDocumentPublishTopic(requestID: String) -> String

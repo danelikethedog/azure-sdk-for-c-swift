@@ -242,15 +242,15 @@ class DemoHubClient: MQTTClientDelegate {
     public func subscribeToAzureIoTHubFeatures() {
         print("[IoT Hub] Subscribing to IoT Hub Features")
         // Methods
-        let methodsTopic = AzHubClient.GetMethodsSubscribeTopic()
+        let methodsTopic = AzHubClient.GetCommandsSubscribeTopic()
         mqttClient.subscribe(topic: methodsTopic, qos: QOS.1)
         
         // Twin Response
-        let twinResponseTopic = AzHubClient.GetTwinResponseSubscribeTopic()
+        let twinResponseTopic = AzHubClient.GetPropertiesResponseSubscribeTopic()
         mqttClient.subscribe(topic: twinResponseTopic, qos: QOS.1)
 
         // Twin Patch
-        let twinPatchTopic = AzHubClient.GetTwinPatchSubscribeTopic()
+        let twinPatchTopic = AzHubClient.GetPropertiesWritablePatchSubscribeTopic()
         mqttClient.subscribe(topic: twinPatchTopic, qos: QOS.1)
 
     }
