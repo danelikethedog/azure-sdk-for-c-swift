@@ -46,22 +46,23 @@ class DemoProvisioningClient: MQTTClientDelegate {
     {
         AzProvClient = AzureIoTDeviceProvisioningClient(idScope: idScope, registrationID: registrationID)
 
-        let caCert = "\(base)/certs/baltimore.pem"
-        let clientCert = "\(base)/certs/client.pem"
-        let keyCert = "\(base)/certs/client-key.pem"
+        let caCert: [UInt8] = Array(myBaltimore.utf8)
+        let clientCert: [UInt8] = Array(myCert.utf8)
+        let keyCert: [UInt8] = Array(myCertKey.utf8)
+
         let tlsConfiguration = try! TLSConfiguration.forClient(minimumTLSVersion: .tlsv11,
                                                                maximumTLSVersion: .tlsv12,
                                                                certificateVerification: .noHostnameVerification,
-                                                               trustRoots: NIOSSLTrustRoots.certificates(NIOSSLCertificate.fromPEMFile(caCert)),
-                                                               certificateChain: NIOSSLCertificate.fromPEMFile(clientCert).map { .certificate($0) },
-                                                               privateKey: .privateKey(.init(file: keyCert, format: .pem)))
-        print("Client ID: \(AzProvClient.GetDeviceProvisionigClientID())")
+                                                               trustRoots: NIOSSLTrustRoots.certificates(NIOSSLCertificate.fromPEMBytes(caCert)),
+                                                               certificateChain: NIOSSLCertificate.fromPEMBytes(clientCert).map { .certificate($0) },
+                                                               privateKey: .privateKey(.init(bytes: keyCert, format: NIOSSLSerializationFormats.pem)))
+        print("Client ID: \(AzProvClient.GetDeviceProvisioningClientID())")
         print("Username: \(AzProvClient.GetDeviceProvisioningUsername())")
 
         mqttClient = MQTTClient(
             host: "global.azure-devices-provisioning.net",
             port: 8883,
-            clientID: AzProvClient.GetDeviceProvisionigClientID(),
+            clientID: AzProvClient.GetDeviceProvisioningClientID(),
             cleanSession: true,
             keepAlive: 30,
             username: AzProvClient.GetDeviceProvisioningUsername(),
@@ -138,7 +139,7 @@ class DemoProvisioningClient: MQTTClientDelegate {
     }
 
     public func sendDeviceProvisioningPollingRequest(operationID: String) {
-        print("[Provisioning] Quering Provisioning")
+        print("[Provisioning] Querying Provisioning")
         let deviceProvisioningQueryTopic = AzProvClient.GetDeviceProvisioningQueryTopic(operationID: operationID)
         mqttClient.publish(topic: deviceProvisioningQueryTopic, retain: false, qos: QOS.1, payload: "")
     }
@@ -160,16 +161,16 @@ class DemoHubClient: MQTTClientDelegate {
     {
         AzHubClient = AzureIoTHubClient(iothubUrl: iothub, deviceId: deviceId)
 
-        let caCert = "\(base)/certs/baltimore.pem"
-        let clientCert = "\(base)/certs/client.pem"
-        let keyCert = "\(base)/certs/client-key.pem"
+        let caCert: [UInt8] = Array(myBaltimore.utf8)
+        let clientCert: [UInt8] = Array(myCert.utf8)
+        let keyCert: [UInt8] = Array(myCertKey.utf8)
 
         let tlsConfiguration = try! TLSConfiguration.forClient(minimumTLSVersion: .tlsv11,
                                                                maximumTLSVersion: .tlsv12,
                                                                certificateVerification: .noHostnameVerification,
-                                                               trustRoots: NIOSSLTrustRoots.certificates(NIOSSLCertificate.fromPEMFile(caCert)),
-                                                               certificateChain: NIOSSLCertificate.fromPEMFile(clientCert).map { .certificate($0) },
-                                                               privateKey: .privateKey(.init(file: keyCert, format: .pem)))
+                                                               trustRoots: NIOSSLTrustRoots.certificates(NIOSSLCertificate.fromPEMBytes(caCert)),
+                                                               certificateChain: NIOSSLCertificate.fromPEMBytes(clientCert).map { .certificate($0) },
+                                                               privateKey: .privateKey(.init(bytes: keyCert, format: NIOSSLSerializationFormats.pem)))
         mqttClient = MQTTClient(
             host: iothub,
             port: 8883,
@@ -195,7 +196,20 @@ class DemoHubClient: MQTTClientDelegate {
         case let packet as PublishPacket:
             print("[IoT Hub] Publish Received: \(packet)");
             print("[IoT Hub] Publish Topic: \(packet.topic)");
-            print("[IoT Hub] Publish Payload \(String(decoding: packet.payload, as: UTF8.self))");
+
+            var commandRequest: AzureIoTHubCommandRequest = AzureIoTHubCommandRequest()
+            var propertiesMessage: AzureIoTHubPropertiesMessage = AzureIoTHubPropertiesMessage()
+
+            if az_result_succeeded(AzHubClient.ParseCommandsReceivedTopic(topic: packet.topic, message: &commandRequest))
+            {
+                print("[IoT Hub] Received Command Request for: \(commandRequest.commandName)")
+                print("[IoT Hub] Command Payload \(String(decoding: packet.payload, as: UTF8.self))");
+            }
+            else if az_result_succeeded(AzHubClient.ParsePropertiesReceivedTopic(topic: packet.topic, message: &propertiesMessage))
+            {
+                print("[IoT Hub] Received Properties Request")
+                print("[IoT Hub] Properties Payload \(String(decoding: packet.payload, as: UTF8.self))");
+            }
 
         default:
             print("[IoT Hub] Packet Received: \(packet)")
@@ -241,9 +255,9 @@ class DemoHubClient: MQTTClientDelegate {
 
     public func subscribeToAzureIoTHubFeatures() {
         print("[IoT Hub] Subscribing to IoT Hub Features")
-        // Methods
-        let methodsTopic = AzHubClient.GetCommandsSubscribeTopic()
-        mqttClient.subscribe(topic: methodsTopic, qos: QOS.1)
+        // Commands
+        let commandsTopic = AzHubClient.GetCommandsSubscribeTopic()
+        mqttClient.subscribe(topic: commandsTopic, qos: QOS.1)
         
         // Twin Response
         let twinResponseTopic = AzHubClient.GetPropertiesResponseSubscribeTopic()
@@ -268,12 +282,21 @@ provisioningDemoClient.subscribeToAzureDeviceProvisioningFeature()
 
 provisioningDemoClient.sendDeviceProvisioningRequest()
 
-queue.asyncAfter(deadline: .now() + 4)
-{
-    provisioningDemoClient.sendDeviceProvisioningPollingRequest(operationID: gOperationID)
-}
+var start = DispatchTime.now()
+var end = DispatchTime.now()
 
-while(!isDeviceProvisioned) {}
+while(!isDeviceProvisioned) {
+
+    // Poll every 5 seconds to ask if provisioned
+    end = DispatchTime.now()
+    let diffTime = end.uptimeNanoseconds - start.uptimeNanoseconds
+    
+    if Double(diffTime) / 1_000_000_000 > 5
+    {
+        start = DispatchTime.now()
+        provisioningDemoClient.sendDeviceProvisioningPollingRequest(operationID: gOperationID)
+    }
+}
 
 provisioningDemoClient.disconnectFromProvisioning()
 
@@ -283,7 +306,24 @@ var hubDemoHubClient = DemoHubClient(iothub: provisioningDemoClient.assignedHub,
 
 hubDemoHubClient.connectToIoTHub()
 
-while(!sendTelemetry) {}
+while(!sendTelemetry) {
+
+    // Keep trying every 5 seconds to connect
+    var start = DispatchTime.now()
+    var end = DispatchTime.now()
+
+    while(!isDeviceProvisioned) {
+        
+        end = DispatchTime.now()
+        let diffTime = end.uptimeNanoseconds - start.uptimeNanoseconds
+        
+        if Double(diffTime) / 1_000_000_000 > 5
+        {
+            start = DispatchTime.now()
+            hubDemoHubClient.connectToIoTHub()
+        }
+    }
+}
 
 hubDemoHubClient.subscribeToAzureIoTHubFeatures()
 
